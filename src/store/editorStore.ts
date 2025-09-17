@@ -93,6 +93,8 @@ export const useEditorStore = create(
             
             draft.state.activeTabId = tabId;
             draft.state.editorContent = tab.content;
+            // Keep language synced from filename on activation
+            tab.language = getLanguageFromExtension((tab.fileName.split('.').pop() || '').toLowerCase());
           })
         );
       },
@@ -109,6 +111,8 @@ export const useEditorStore = create(
             if (draft.state.activeTabId === tabId) {
               draft.state.editorContent = content;
             }
+            // Sync language if file name changed externally
+            tab.language = getLanguageFromExtension((tab.fileName.split('.').pop() || '').toLowerCase());
           })
         );
       },

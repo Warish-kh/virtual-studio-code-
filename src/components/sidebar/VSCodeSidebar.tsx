@@ -5,6 +5,7 @@ import SearchView from './views/SearchView';
 import GitView from './views/GitView';
 import DebugView from './views/DebugView';
 import ExtensionsView from './views/ExtensionsView';
+import HistoryView from './views/HistoryView';
 
 const VSCodeSidebar: React.FC = () => {
   const { state: uiState } = useUIStore();
@@ -22,6 +23,8 @@ const VSCodeSidebar: React.FC = () => {
         return <DebugView />;
       case 'extensions':
         return <ExtensionsView />;
+      case 'history':
+        return <HistoryView />;
       default:
         return <ExplorerView />;
     }

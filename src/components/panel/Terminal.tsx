@@ -176,9 +176,13 @@ const Terminal: React.FC = () => {
           // Write error
           term.writeln(`\x1b[1;31mError: ${error}\x1b[0m`);
         } else if (output) {
-          // Write output
+          // Write output with proper formatting
           term.writeln(`\x1b[1;33mOutput:\x1b[0m`);
-          term.writeln(output);
+          // Split output by lines and write each line
+          const lines = output.split('\n');
+          lines.forEach(line => {
+            term.writeln(line);
+          });
         }
         
         // Add new prompt

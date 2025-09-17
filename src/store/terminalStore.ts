@@ -348,83 +348,79 @@ async function executeTypeScript(code: string): Promise<string> {
   }
 }
 
-// Python execution (enhanced Python-like interpreter)
+// Python execution using Pyodide (real Python in the browser)
+let __pyodidePromise: Promise<any> | null = null;
+async function loadPyodideOnce(): Promise<any> {
+  if (__pyodidePromise) return __pyodidePromise;
+  __pyodidePromise = new Promise(async (resolve, reject) => {
+    try {
+      if (!(window as any).loadPyodide) {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
+        script.onload = async () => {
+          try {
+            const py = await (window as any).loadPyodide({});
+            resolve(py);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        script.onerror = reject;
+        document.head.appendChild(script);
+      } else {
+        const py = await (window as any).loadPyodide({});
+        resolve(py);
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+  return __pyodidePromise;
+}
+
 async function executePython(code: string): Promise<string> {
   try {
-    let output = '';
-    const lines = code.split('\n');
-    const variables: Record<string, any> = {};
+    const pyodide = await loadPyodideOnce();
+    let stdout = '';
+    let stderr = '';
+
+    // Use the correct Pyodide API for capturing output
+    const originalStdout = (pyodide as any)._module.print;
+    const originalStderr = (pyodide as any)._module.printErr;
     
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      if (!trimmedLine || trimmedLine.startsWith('#')) continue;
-      
-      if (trimmedLine.startsWith('print(') && trimmedLine.endsWith(')')) {
-        const content = trimmedLine.slice(6, -1);
-        // Handle string interpolation
-        const processedContent = content.replace(/\{([^}]+)\}/g, (match, varName) => {
-          return variables[varName.trim()] || match;
-        });
-        output += `${processedContent}\n`;
-      } else if (trimmedLine.includes('=')) {
-        // Variable assignment
-        const [varName, value] = trimmedLine.split('=').map(s => s.trim());
-        if (value.startsWith('"') && value.endsWith('"')) {
-          variables[varName] = value.slice(1, -1);
-        } else if (value.startsWith("'") && value.endsWith("'")) {
-          variables[varName] = value.slice(1, -1);
-        } else if (value.includes('[') && value.includes(']')) {
-          // List comprehension - simplified
-          try {
-            variables[varName] = eval(value);
-          } catch {
-            variables[varName] = value;
-          }
-        } else {
-          try {
-            variables[varName] = eval(value);
-          } catch {
-            variables[varName] = value;
-          }
-        }
-        output += `Variable assigned: ${varName} = ${variables[varName]}\n`;
-      } else if (trimmedLine.startsWith('if ') || trimmedLine.startsWith('for ') || trimmedLine.startsWith('while ')) {
-        output += `Control structure: ${trimmedLine}\n`;
-      } else if (trimmedLine.startsWith('def ')) {
-        output += `Function defined: ${trimmedLine}\n`;
-      } else if (trimmedLine.startsWith('class ')) {
-        output += `Class defined: ${trimmedLine}\n`;
-      } else {
-        output += `Executed: ${trimmedLine}\n`;
-      }
+    (pyodide as any)._module.print = (text: string) => { stdout += text; };
+    (pyodide as any)._module.printErr = (text: string) => { stderr += text; };
+    
+    try {
+      (pyodide as any).runPython(code);
+    } finally {
+      // Restore original streams
+      (pyodide as any)._module.print = originalStdout;
+      (pyodide as any)._module.printErr = originalStderr;
     }
     
-    return output || 'Python code executed successfully';
+    const out = stdout.trim();
+    const err = stderr.trim();
+    if (out) return out;
+    if (err) return `Error:\n${err}`;
+    return 'Python finished (no output)';
   } catch (error) {
-    return `Python execution error: ${error instanceof Error ? error.message : String(error)}`;
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.includes('Failed to fetch') || msg.includes('network')) {
+      return 'Python runtime could not be loaded. Please check your internet connection and allow the CDN https://cdn.jsdelivr.net.';
+    }
+    return `Python execution error: ${msg}`;
   }
 }
 
-// Java execution (simplified Java-like interpreter)
+// Java execution (very simplified parser to capture System.out.println and basics)
 async function executeJava(code: string): Promise<string> {
   try {
     let output = '';
-    
-    // Check for main method
-    if (code.includes('public static void main')) {
-      output += 'Java main method detected\n';
-      
-      // Extract main method content
-      const mainMatch = code.match(/public static void main\s*\([^)]*\)\s*\{([^}]*)\}/s);
-      if (mainMatch) {
-        const mainContent = mainMatch[1];
-        output += await executeJavaCode(mainContent);
-      }
-    } else {
-      // Execute as regular Java code
-      output += await executeJavaCode(code);
-    }
-    
+    const cleaned = code.replace(/\/{2}.*$/gm, '');
+    const mainMatch = cleaned.match(/public\s+class\s+\w+[\s\S]*?public\s+static\s+void\s+main\s*\([^)]*\)\s*\{([\s\S]*)\}/);
+    const body = mainMatch ? mainMatch[1] : cleaned;
+    output += await executeJavaCode(body);
     return output || 'Java code executed successfully';
   } catch (error) {
     return `Java execution error: ${error instanceof Error ? error.message : String(error)}`;
@@ -439,11 +435,10 @@ async function executeJavaCode(code: string): Promise<string> {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.startsWith('//')) continue;
     
-    if (trimmedLine.startsWith('System.out.println')) {
-      const content = trimmedLine.match(/System\.out\.println\s*\(\s*"([^"]*)"\s*\)/);
-      if (content) {
-        output += `${content[1]}\n`;
-      }
+    if (/System\.out\.println\s*\(/.test(trimmedLine)) {
+      const strMatch = trimmedLine.match(/System\.out\.println\s*\(\s*"([^"]*)"\s*\)/);
+      if (strMatch) { output += `${strMatch[1]}\n`; }
+      else { output += 'println called\n'; }
     } else if (trimmedLine.includes('=')) {
       output += `Variable assignment: ${trimmedLine}\n`;
     } else if (trimmedLine.startsWith('if ') || trimmedLine.startsWith('for ') || trimmedLine.startsWith('while ')) {

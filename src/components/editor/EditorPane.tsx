@@ -4,12 +4,16 @@ import { useEditorStore } from '@/store/editorStore';
 import { useTerminalStore } from '@/store/terminalStore';
 import { useUIStore } from '@/store/uiStore';
 import { Play, Terminal } from 'lucide-react';
+import { useHistoryStore } from '@/store/historyStore';
+import { useUser } from '@clerk/clerk-react';
 import { editor as monacoEditor } from 'monaco-editor';
 
 const EditorPane: React.FC = () => {
   const { state: editorState, updateTabContent, updateCursorPosition, saveTab } = useEditorStore();
   const { executeCode } = useTerminalStore();
   const { toggleTerminal } = useUIStore();
+  const { addEntry } = useHistoryStore();
+  const { user } = useUser();
   const { activeTabId, tabs } = editorState;
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const editorRef = useRef<monacoEditor.IStandaloneCodeEditor | null>(null);
@@ -34,6 +38,15 @@ const EditorPane: React.FC = () => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       if (activeTabId) {
         saveTab(activeTabId);
+        if (activeTab) {
+          addEntry({
+            userId: user?.id ?? 'anonymous',
+            filePath: activeTab.filePath,
+            fileName: activeTab.fileName,
+            language: activeTab.language,
+            content: activeTab.content,
+          });
+        }
       }
     });
 
@@ -269,9 +282,19 @@ const EditorPane: React.FC = () => {
     // Open terminal if not already open
     toggleTerminal();
     
+    // Wait a bit for terminal to be ready
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     // Execute code immediately and display in terminal
     try {
       const result = await executeCode(activeTab.content, activeTab.language);
+      addEntry({
+        userId: user?.id ?? 'anonymous',
+        filePath: activeTab.filePath,
+        fileName: activeTab.fileName,
+        language: activeTab.language,
+        content: activeTab.content,
+      });
       
       // Find the terminal element and write to it
       const terminalElement = document.querySelector('.vscode-terminal .xterm');
@@ -285,6 +308,11 @@ const EditorPane: React.FC = () => {
           }
         });
         terminalElement.dispatchEvent(writeEvent);
+      } else {
+        // Fallback: write to terminal store history
+        useTerminalStore.getState().writeToTerminal(`$ run ${activeTab.language} ${activeTab.fileName}`);
+        useTerminalStore.getState().writeToTerminal(`Output:`);
+        useTerminalStore.getState().writeToTerminal(result);
       }
       
     } catch (error) {
@@ -301,6 +329,10 @@ const EditorPane: React.FC = () => {
           }
         });
         terminalElement.dispatchEvent(writeEvent);
+      } else {
+        // Fallback: write error to terminal store history
+        useTerminalStore.getState().writeToTerminal(`$ run ${activeTab.language} ${activeTab.fileName}`);
+        useTerminalStore.getState().writeToTerminal(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
   };
@@ -365,6 +397,21 @@ const EditorPane: React.FC = () => {
     return <div className="h-full flex items-center justify-center text-muted-foreground">No file open</div>;
   }
   
+  // Compute language from filename each render to keep in sync with renames
+  const computedLanguage = (() => {
+    const name = activeTab?.fileName || '';
+    const ext = name.includes('.') ? name.split('.').pop()?.toLowerCase() : '';
+    const map: Record<string, string> = {
+      js: 'javascript', jsx: 'javascript',
+      ts: 'typescript', tsx: 'typescript',
+      html: 'html', css: 'css', json: 'json', md: 'markdown',
+      py: 'python', java: 'java', c: 'c', cpp: 'cpp', cs: 'csharp', go: 'go',
+      php: 'php', rb: 'ruby', rs: 'rust', sh: 'shell', sql: 'sql', swift: 'swift',
+      xml: 'xml', yaml: 'yaml', yml: 'yaml'
+    };
+    return (ext && map[ext]) ? map[ext] : 'plaintext';
+  })();
+
   return (
     <div className="h-full w-full flex flex-col">
       {/* Editor Toolbar */}
@@ -410,7 +457,7 @@ const EditorPane: React.FC = () => {
           <Editor
             height={containerSize.height}
             width={containerSize.width}
-            defaultLanguage={activeTab.language}
+            language={computedLanguage}
             value={activeTab.content}
             onChange={handleEditorChange}
             onMount={handleEditorDidMount}

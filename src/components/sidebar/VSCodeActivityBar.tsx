@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Files, Search, GitBranch, Bug, Package, User, Settings
+  Files, Search, GitBranch, Bug, Package, History, User, Settings
 } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
 import { SidebarView } from '@/types';
@@ -11,6 +11,7 @@ const icons = [
   { view: 'git', icon: GitBranch, label: 'Source Control' },
   { view: 'debug', icon: Bug, label: 'Run & Debug' },
   { view: 'extensions', icon: Package, label: 'Extensions' },
+  { view: 'history', icon: History, label: 'History' },
 ];
 
 const VSCodeActivityBar: React.FC = () => {

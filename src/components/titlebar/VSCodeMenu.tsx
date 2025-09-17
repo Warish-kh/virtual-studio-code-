@@ -1,6 +1,7 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { ChevronRight, Check } from 'lucide-react';
 import { useUIStore } from '@/store/uiStore';
+import { SignInButton, SignOutButton, useUser } from '@clerk/clerk-react';
+import { Check, ChevronRight } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const menuData = [
   {
@@ -290,6 +291,7 @@ const VSCodeMenu: React.FC<{ menu?: 'file' | 'edit' | 'selection' | 'view' | 'go
   if (menu === 'run') data = runMenuData;
 
   let groupIndex = 0;
+  const { isSignedIn } = useUser();
   return (
     <div
       ref={menuRef}
@@ -297,6 +299,19 @@ const VSCodeMenu: React.FC<{ menu?: 'file' | 'edit' | 'selection' | 'view' | 'go
       onClick={e => e.stopPropagation()}
       tabIndex={0}
     >
+      {/* Account section */}
+      <div className="px-3 py-1.5 text-sm flex items-center gap-2">
+        {isSignedIn ? (
+          <SignOutButton signOutOptions={{ redirectUrl: '/sign-in' }}>
+            <button className="w-full text-left hover:bg-[#373b41] rounded px-2 py-1">Sign out</button>
+          </SignOutButton>
+        ) : (
+          <SignInButton mode="modal">
+            <button className="w-full text-left hover:bg-[#373b41] rounded px-2 py-1">Sign in</button>
+          </SignInButton>
+        )}
+      </div>
+      <div className="my-1 border-t border-[#333]" />
       {data.map((section, i) => (
         <React.Fragment key={i}>
           {i !== 0 && <div className="my-1 border-t border-[#333]" />}

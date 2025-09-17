@@ -22,17 +22,7 @@ const VSCodeLayout: React.FC = () => {
     }
   }, [uiState.theme]);
 
-  // Close context menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      useUIStore.getState().closeContextMenu();
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
+  // Context menu close is handled inside the ContextMenu component.
 
   return (
     <DragProvider>

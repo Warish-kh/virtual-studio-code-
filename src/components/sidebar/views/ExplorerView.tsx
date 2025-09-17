@@ -142,7 +142,6 @@ const ExplorerView: React.FC = () => {
         icon: 'Pencil',
         action: () => {
           console.log('Rename action triggered for node:', node.name, 'path:', node.path);
-          alert('Rename action triggered!'); // Temporary alert to test
           setRenamingNode(node.path);
           setRenamingValue(node.name);
           console.log('Renaming state set:', { renamingNode: node.path, renamingValue: node.name });
@@ -170,7 +169,6 @@ const ExplorerView: React.FC = () => {
           const itemName = node.name;
           
           console.log('Delete action triggered for:', itemType, itemName, 'path:', node.path);
-          alert('Delete action triggered!'); // Temporary alert to test
           
           if (confirm(`Are you sure you want to delete the ${itemType} "${itemName}"?\n\nThis action cannot be undone.`)) {
             console.log(`Deleting ${itemType}:`, itemName, 'path:', node.path);

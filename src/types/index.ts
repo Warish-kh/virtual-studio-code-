@@ -68,7 +68,7 @@ export interface ExtensionState {
 }
 
 // UI Types
-export type SidebarView = 'explorer' | 'search' | 'git' | 'debug' | 'extensions';
+export type SidebarView = 'explorer' | 'search' | 'git' | 'debug' | 'extensions' | 'history';
 
 export interface UIState {
   isSidebarOpen: boolean;
@@ -90,4 +90,19 @@ export interface ContextMenuItem {
   icon?: string;
   action?: () => void;
   separator?: boolean;
+}
+
+// History Types
+export interface HistoryEntry {
+  id: string;
+  userId: string;
+  filePath: string;
+  fileName: string;
+  language: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface HistoryState {
+  entries: HistoryEntry[];
 }

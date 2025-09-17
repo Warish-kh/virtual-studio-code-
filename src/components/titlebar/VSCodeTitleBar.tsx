@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, X, Minus, Square, Search, MoreVertical } from 'lucide-react';
+import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
+import { ChevronLeft, ChevronRight, Minus, MoreVertical, Search, Square, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import VSCodeMenu from './VSCodeMenu';
 
 const MENUS = [
@@ -101,6 +102,19 @@ const VSCodeTitleBar: React.FC = () => {
           />
           <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-muted-foreground" />
         </div>
+      </div>
+      {/* Auth Controls */}
+      <div className="flex items-center space-x-3 mr-2">
+        <SignedIn>
+          <UserButton afterSignOutUrl="/sign-in" appearance={{ elements: { userButtonAvatarBox: 'h-6 w-6' } }} />
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="vscode-titlebar-button" aria-label="Sign in">
+              Sign in
+            </button>
+          </SignInButton>
+        </SignedOut>
       </div>
       {/* Window Controls */}
       <div className="flex items-center space-x-2">
